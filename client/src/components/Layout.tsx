@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BracketViewer from "@/components/BracketViewer";
+import PlasmaBackground from "@/components/PlasmaBackground";
 
 // Custom Discord icon with official branding
 const DiscordIcon = () => (
@@ -50,6 +51,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const logoClassName = "w-auto cursor-pointer transition-transform duration-150 interactive-surface";
 
   const socials = [
     { name: "Twitch", icon: <Twitch className="h-4 w-4" />, url: "https://www.twitch.tv/aqrix78" },
@@ -60,26 +62,25 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary selection:text-primary-foreground">
-      {/* Background grid overlay for cyber-brutalism theme */}
-      <div className="fixed inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20 z-0" />
+    <div className="min-h-screen text-foreground flex flex-col font-sans selection:bg-primary selection:text-primary-foreground">
+      <PlasmaBackground />
 
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b-2 border-border/80 bg-background/95 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-black/40 backdrop-blur-2xl">
+        <div className="container mx-auto flex items-center justify-between px-4 py-5">
           
           {/* Brand Logo & Socials Box (Left Side) */}
           <div className="flex items-center gap-4">
             <Link href="/">
               <img 
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663707232722/jTH9wppZToFDt7qfhA7823/aqrix-logo-purple-5UkwphK7TA3S3DsUNaZ3Dm.webp" 
+                src="/aqrix-logo-transparent.png" 
                 alt="Aqrix Logo" 
-                className="h-14 w-auto cursor-pointer hover:scale-110 transition-transform duration-150 drop-shadow-lg"
+                className={`h-14 ${logoClassName} hover:scale-110 drop-shadow-lg`}
               />
             </Link>
 
             {/* Social Links - Minimal and clean */}
-            <div className="flex items-center gap-2 pl-2 border-l border-border/40">
+            <div className="flex items-center gap-2 pl-3">
               {socials.map((social) => (
                 <a
                   key={social.name}
@@ -87,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={social.name}
-                  className="text-muted-foreground hover:text-primary transition-colors duration-150 p-1 hover:bg-muted/40"
+                  className="interactive-surface rounded-full bg-white/[0.03] p-2 text-muted-foreground transition-colors duration-200 hover:bg-white/[0.08] hover:text-primary"
                 >
                   {social.icon}
                 </a>
@@ -96,21 +97,21 @@ export default function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Navigation Links (Right Side) */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-3 rounded-full bg-white/[0.03] px-4 py-2">
             <Link href="/">
-              <span className={`font-mono text-sm uppercase tracking-wider cursor-pointer py-1 border-b-2 transition-all duration-150 ${
+              <span className={`interactive-surface inline-flex items-center rounded-full px-3 py-2 font-mono text-sm uppercase tracking-[0.18em] cursor-pointer transition-colors duration-200 ${
                 location === "/" 
-                  ? "border-primary text-primary font-bold" 
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  ? "bg-white/[0.08] text-white font-bold" 
+                  : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
               }`}>
                 Home
               </span>
             </Link>
             <Link href="/rules">
-              <span className={`font-mono text-sm uppercase tracking-wider cursor-pointer py-1 border-b-2 transition-all duration-150 ${
+              <span className={`interactive-surface inline-flex items-center rounded-full px-3 py-2 font-mono text-sm uppercase tracking-[0.18em] cursor-pointer transition-colors duration-200 ${
                 location === "/rules" 
-                  ? "border-primary text-primary font-bold" 
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  ? "bg-white/[0.08] text-white font-bold" 
+                  : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
               }`}>
                 Rules
               </span>
@@ -120,10 +121,10 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Bracket Link */}
             <Link href="/bracket">
-              <span className={`font-mono text-sm uppercase tracking-wider cursor-pointer py-1 border-b-2 transition-all duration-150 flex items-center gap-1 ${
+              <span className={`interactive-surface inline-flex items-center gap-1 rounded-full px-3 py-2 font-mono text-sm uppercase tracking-[0.18em] cursor-pointer transition-colors duration-200 ${
                 location === "/bracket" 
-                  ? "border-primary text-primary font-bold" 
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  ? "bg-white/[0.08] text-white font-bold" 
+                  : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
               }`} title="Tournament Bracket">
                 <Brackets className="h-4 w-4" />
                 Bracket
@@ -135,7 +136,7 @@ export default function Layout({ children }: LayoutProps) {
               href="https://discord.gg/2mj9xgWzFg" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="font-mono text-sm uppercase tracking-wider cursor-pointer py-1 px-2 border-b-2 border-transparent text-muted-foreground hover:text-secondary hover:border-secondary transition-all duration-150 flex items-center gap-1"
+              className="interactive-surface inline-flex items-center gap-1 rounded-full px-3 py-2 font-mono text-sm uppercase tracking-[0.18em] text-secondary transition-colors duration-200 hover:bg-white/[0.05] hover:text-white"
               title="Support Channel"
             >
               <HelpCircle className="h-4 w-4" />
@@ -146,10 +147,8 @@ export default function Layout({ children }: LayoutProps) {
             <Link href="/register">
               <Button 
                 variant="default" 
-                className="font-mono uppercase tracking-wider text-xs border-2 border-primary hover:bg-transparent hover:text-primary transition-all duration-300 bg-primary text-primary-foreground relative overflow-hidden group px-5 py-2.5 hover:scale-110 btn-click-anim btn-glow"
+                className="interactive-surface rounded-full bg-primary px-6 py-2.5 font-mono text-xs uppercase tracking-[0.18em] text-primary-foreground transition-colors duration-200 hover:bg-primary/85"
               >
-                <div className="absolute top-0 left-0 w-1 h-1 bg-white" />
-                <div className="absolute bottom-0 right-0 w-1 h-1 bg-white" />
                 <span className="flex items-center gap-2">
                   Join Tournament <ExternalLink className="h-3 w-3" />
                 </span>
@@ -160,7 +159,7 @@ export default function Layout({ children }: LayoutProps) {
           {/* Mobile Menu Button */}
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 border-2 border-border text-foreground hover:text-primary hover:border-primary transition-colors duration-150"
+            className="interactive-surface md:hidden rounded-full bg-white/[0.04] p-2 text-foreground transition-colors duration-200 hover:bg-white/[0.08] hover:text-primary"
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -168,15 +167,15 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t-2 border-border bg-card animate-in fade-in slide-in-from-top-5 duration-150">
-            <div className="container mx-auto px-4 py-4 flex flex-col gap-4">
+          <div className="animate-in fade-in slide-in-from-top-5 duration-150 md:hidden bg-card/90 backdrop-blur-2xl">
+            <div className="container mx-auto flex flex-col gap-3 px-4 py-4">
               <Link href="/">
                 <div 
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`font-mono text-base uppercase tracking-wider cursor-pointer py-2 px-3 border-l-2 ${
+                  className={`rounded-2xl px-4 py-3 font-mono text-base uppercase tracking-[0.18em] cursor-pointer ${
                     location === "/" 
-                      ? "border-primary text-primary bg-primary/5 font-bold" 
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/10"
+                      ? "bg-white/[0.08] text-white font-bold" 
+                      : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
                   }`}
                 >
                   Home
@@ -185,10 +184,10 @@ export default function Layout({ children }: LayoutProps) {
               <Link href="/rules">
                 <div 
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`font-mono text-base uppercase tracking-wider cursor-pointer py-2 px-3 border-l-2 ${
+                  className={`rounded-2xl px-4 py-3 font-mono text-base uppercase tracking-[0.18em] cursor-pointer ${
                     location === "/rules" 
-                      ? "border-primary text-primary bg-primary/5 font-bold" 
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/10"
+                      ? "bg-white/[0.08] text-white font-bold" 
+                      : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
                   }`}
                 >
                   Rules
@@ -197,19 +196,19 @@ export default function Layout({ children }: LayoutProps) {
               <Link href="/bracket">
                 <div 
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`font-mono text-base uppercase tracking-wider cursor-pointer py-2 px-3 border-l-2 ${
+                  className={`rounded-2xl px-4 py-3 font-mono text-base uppercase tracking-[0.18em] cursor-pointer ${
                     location === "/bracket" 
-                      ? "border-primary text-primary bg-primary/5 font-bold" 
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/10"
+                      ? "bg-white/[0.08] text-white font-bold" 
+                      : "text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
                   }`}
                 >
                   Bracket
                 </div>
               </Link>
               
-              <div className="border-t border-border/60 pt-4">
+              <div className="pt-2">
                 <Link href="/register" className="w-full block" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full font-mono uppercase tracking-wider text-sm border-2 border-primary bg-primary text-primary-foreground py-3">
+                  <Button className="interactive-surface w-full rounded-full bg-primary py-3 font-mono text-sm uppercase tracking-[0.18em] text-primary-foreground hover:bg-primary/85">
                     Join Tournament <ExternalLink className="h-4 w-4 ml-2 inline" />
                   </Button>
                 </Link>
@@ -227,7 +226,7 @@ export default function Layout({ children }: LayoutProps) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t-2 border-border bg-card/50 py-8 relative z-10">
+      <footer className="relative z-10 bg-card/30 py-14 backdrop-blur-sm">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
             
@@ -235,12 +234,12 @@ export default function Layout({ children }: LayoutProps) {
             <div className="flex flex-col items-center md:items-start">
               <div className="flex items-center gap-3 mb-2">
                 <img 
-                  src="https://d2xsxph8kpxj0f.cloudfront.net/310519663707232722/jTH9wppZToFDt7qfhA7823/aqrix-logo-purple-5UkwphK7TA3S3DsUNaZ3Dm.webp" 
+                  src="/aqrix-logo-transparent.png" 
                   alt="Aqrix Logo" 
-                  className="h-8 w-auto"
+                  className={`h-8 ${logoClassName}`}
                 />
-                <span className="font-mono text-lg font-black tracking-wider text-primary">
-                  AQRIX 2V2
+                <span className="font-mono text-lg font-black tracking-[0.2em] text-primary">
+                  TOURNAMENT
                 </span>
               </div>
               <p className="text-xs text-muted-foreground text-center md:text-left">
@@ -260,7 +259,7 @@ export default function Layout({ children }: LayoutProps) {
                     href={social.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 border border-border/80 text-muted-foreground hover:text-primary hover:border-primary transition-all duration-150"
+                    className="interactive-surface rounded-full bg-white/[0.04] p-2 text-muted-foreground transition-colors duration-200 hover:bg-white/[0.08] hover:text-primary"
                   >
                     {social.icon}
                   </a>
@@ -279,7 +278,7 @@ export default function Layout({ children }: LayoutProps) {
               
               {/* Admin Login - Bottom Right */}
               <Link href="/admin" title="Admin Panel" className="mt-3">
-                <span className="cursor-pointer py-1 px-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-150 opacity-50 hover:opacity-100 flex items-center">
+                <span className="interactive-surface cursor-pointer py-1 px-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-150 opacity-50 hover:opacity-100 flex items-center">
                   <LogIn className="h-3 w-3" />
                 </span>
               </Link>

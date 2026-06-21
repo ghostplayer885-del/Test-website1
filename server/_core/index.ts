@@ -64,7 +64,7 @@ async function startServer() {
       if (!db) throw new Error("DB not available");
       // Create tables if not exist
       await db.execute(sql`CREATE TABLE IF NOT EXISTS bracket_matches (id INT AUTO_INCREMENT PRIMARY KEY, bracket ENUM('left','right','finals') NOT NULL, round INT NOT NULL, matchNumber INT NOT NULL, team1Id INT, team2Id INT, team1Score INT DEFAULT 0, team2Score INT DEFAULT 0, winnerId INT, nextMatchId INT, nextMatchPosition INT, createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)`);
-      await db.execute(sql`CREATE TABLE IF NOT EXISTS teams (id INT AUTO_INCREMENT PRIMARY KEY, teamName VARCHAR(255) NOT NULL, player1Name VARCHAR(255) NOT NULL, player1TrackerLink VARCHAR(500) NOT NULL, player1TwitchName VARCHAR(255) NOT NULL, player1YouTubeName VARCHAR(255) NOT NULL, player1InstagramName VARCHAR(255) NOT NULL, player1DiscordName VARCHAR(255) NOT NULL, player1TikTokName VARCHAR(255) NOT NULL, player2Name VARCHAR(255) NOT NULL, player2TrackerLink VARCHAR(500) NOT NULL, player2TwitchName VARCHAR(255) NOT NULL, player2YouTubeName VARCHAR(255) NOT NULL, player2InstagramName VARCHAR(255) NOT NULL, player2DiscordName VARCHAR(255) NOT NULL, player2TikTokName VARCHAR(255) NOT NULL, status ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending', createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)`);
+      await db.execute(sql`CREATE TABLE IF NOT EXISTS teams (id INT AUTO_INCREMENT PRIMARY KEY, teamName VARCHAR(255) NOT NULL, player1Name VARCHAR(255) NOT NULL, player1TrackerLink VARCHAR(500) NOT NULL, player1TwitchName VARCHAR(255) NOT NULL, player1YouTubeName VARCHAR(255) NOT NULL, player1InstagramName VARCHAR(255) NOT NULL, player1DiscordName VARCHAR(255) NOT NULL, player1TikTokName VARCHAR(255) NOT NULL, player2Name VARCHAR(255) NOT NULL, player2TrackerLink VARCHAR(500) NOT NULL, player2TwitchName VARCHAR(255) NOT NULL, player2YouTubeName VARCHAR(255) NOT NULL, player2InstagramName VARCHAR(255) NOT NULL, player2DiscordName VARCHAR(255) NOT NULL, player2TikTokName VARCHAR(255) NOT NULL, status ENUM('pending','verified','rejected','wheel_selected') NOT NULL DEFAULT 'pending', rejectionReason VARCHAR(500) NULL, selectedAt TIMESTAMP NULL, createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)`);
       await db.execute(sql`DELETE FROM bracket_matches`);
       await db.execute(sql`DELETE FROM teams`);
       const teamData = [
@@ -102,11 +102,12 @@ async function startServer() {
         ["NanoForce_A","NanoX1","MicroBlade1"],["NanoForce_B","NanoX2","MicroBlade2"],
       ];
       for (const [teamName, p1, p2] of teamData) {
-        await db!.insert(teamsTable).values({ teamName, player1Name: p1, player1TrackerLink: "https://tracker.gg", player1TwitchName: p1, player1YouTubeName: "", player1InstagramName: "", player1DiscordName: p1+"#001", player1TikTokName: "", player2Name: p2, player2TrackerLink: "https://tracker.gg", player2TwitchName: p2, player2YouTubeName: "", player2InstagramName: "", player2DiscordName: p2+"#001", player2TikTokName: "", status: "verified" });
+        await db!.insert(teamsTable).values({ teamName, player1Name: p1, player1TrackerLink: "https://tracker.gg", player1TwitchName: p1, player1YouTubeName: "", player1InstagramName: "", player1DiscordName: p1+"#001", player1TikTokName: "", player2Name: p2, player2TrackerLink: "https://tracker.gg", player2TwitchName: p2, player2YouTubeName: "", player2InstagramName: "", player2DiscordName: p2+"#001", player2TikTokName: "", status: "verified", rejectionReason: null, selectedAt: null });
       }
       res.json({ success: true, message: "64 Teams eingefuegt!" });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      const message = e instanceof Error ? e.message : "Unknown error";
+      res.status(500).json({ error: message });
     }
   });
 

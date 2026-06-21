@@ -1,0 +1,438 @@
+import { Brackets, Trophy, Zap } from "lucide-react";
+import Layout from "@/components/Layout";
+import { trpc } from "@/lib/trpc";
+
+export default function Bracket() {
+  const { data: allTeams } = trpc.teams.list.useQuery();
+  const { data: bracketData } = trpc.tournament.getBracket.useQuery(undefined, {
+    refetchInterval: 3000,
+  });
+  const { data: tournamentStatus } = trpc.tournament.getStatus.useQuery();
+
+  const registeredCount = allTeams?.length || 0;
+  const matches = bracketData?.matches || [];
+
+  return (
+    <Layout>
+      {/* Header */}
+      <section className="relative py-20 border-b-2 border-border bg-card/10 overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl -ml-48 -mb-48 pointer-events-none" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-primary/40 bg-primary/10 text-primary font-mono text-xs uppercase tracking-widest mb-6">
+              <Brackets className="h-4 w-4" />
+              Live Tournament Bracket
+            </div>
+            <h1 className="font-mono text-5xl md:text-6xl font-black uppercase tracking-tight text-foreground mb-4">
+              Tournament <span className="text-primary">Bracket</span>
+            </h1>
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              Track the progress of the Aqrix 2v2 Community Cup. Results refresh every 3 seconds.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="py-12 border-b-2 border-border">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="border-2 border-border bg-card p-6 relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-2">Status</p>
+                <p className="font-mono text-2xl font-black text-primary">
+                  {tournamentStatus?.status === "live" ? "🔴 LIVE" : "⏳ Registration"}
+                </p>
+              </div>
+            </div>
+            <div className="border-2 border-border bg-card p-6 relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-secondary/0 via-secondary/5 to-secondary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-2">Teams</p>
+                <p className="font-mono text-2xl font-black text-secondary">{registeredCount} / 64</p>
+              </div>
+            </div>
+            <div className="border-2 border-border bg-card p-6 relative group">
+              <div className="absolute inset-0 bg-gradient-to-r from-accent/0 via-accent/5 to-accent/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-2">Prize Pool</p>
+                <p className="font-mono text-2xl font-black text-accent">160€ Total</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Bracket */}
+      <section className="py-16 border-b-2 border-border bg-background">
+        <div className="container mx-auto px-4">
+          {matches.length === 0 ? (
+            <div className="text-center py-20">
+              <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h2 className="font-mono text-2xl font-black text-foreground mb-2">Bracket Being Prepared</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                The bracket will appear here once registration is complete.
+              </p>
+            </div>
+          ) : (
+            <PublicBracketView matches={matches} />
+          )}
+        </div>
+      </section>
+
+      {/* Live info */}
+      <section className="py-12 border-b-2 border-border">
+        <div className="container mx-auto px-4">
+          <div className="border-2 border-primary/40 bg-primary/5 p-6 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Zap className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-mono text-lg font-black text-primary mb-2">Live Updates</h3>
+                <p className="text-sm text-muted-foreground">
+                  The bracket refreshes every 3 seconds automatically. Follow the livestream on Twitch for commentary and live draws.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </Layout>
+  );
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────
+interface Match {
+  id: number;
+  bracket: string;
+  round: number;
+  matchNumber: number;
+  team1: string;
+  team2: string;
+  team1Id: number | null;
+  team2Id: number | null;
+  team1Score: number;
+  team2Score: number;
+  winnerId: number | null;
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const MW      = 140;   // match width
+const TEAM_H  = 22;    // height per team row
+const VS_H    = 13;    // VS separator
+const MH      = TEAM_H * 2 + VS_H;   // total match height
+const GAP0    = 10;
+const COL_GAP = 48;
+const FGAP    = 70;
+const FM_W    = 170;
+const WB_H    = 110;
+const FINALS_GAP_V = 32;
+const ROUNDS  = 5;
+const HPAD    = 16;
+const PAD_TOP = 60;
+const TL_Y    = 28;
+
+function gap(ri: number): number {
+  return ri === 0 ? GAP0 : 2 * MH + 2 * gap(ri - 1) + GAP0 - MH;
+}
+function colH(ri: number, n: number) { return n * MH + (n - 1) * gap(ri); }
+
+// ── Public read-only bracket ───────────────────────────────────────────────
+function PublicBracketView({ matches }: { matches: Match[] }) {
+  // Group by bracket → round → matches
+  const grouped: Record<string, Record<number, Match[]>> = {};
+  matches.forEach((m) => {
+    if (!grouped[m.bracket]) grouped[m.bracket] = {};
+    if (!grouped[m.bracket][m.round]) grouped[m.bracket][m.round] = [];
+    grouped[m.bracket][m.round].push(m);
+  });
+
+  const leftRounds  = Object.keys(grouped["left"]  || {}).map(Number).sort((a,b)=>a-b);
+  const rightRounds = Object.keys(grouped["right"] || {}).map(Number).sort((a,b)=>a-b);
+  const finalsRounds= Object.keys(grouped["finals"]|| {}).map(Number).sort((a,b)=>a-b);
+
+  const maxH = colH(0, 16); // 16 pairs = 32 matches in round 1
+
+  const sideW     = ROUNDS * MW + (ROUNDS - 1) * COL_GAP;
+  const finalsTotalH = MH + FINALS_GAP_V + WB_H;
+  const totalW    = HPAD + sideW + FGAP + FM_W + FGAP + sideW + HPAD;
+  const totalH    = PAD_TOP + maxH + FINALS_GAP_V + WB_H + 100;
+
+  const CX  = totalW / 2;
+  const fmx = CX - FM_W / 2;
+
+  function colX(ri: number, side: "left" | "right") {
+    if (side === "left")  return HPAD + ri * (MW + COL_GAP);
+    return HPAD + sideW - MW - ri * (MW + COL_GAP);
+  }
+
+  const RNAMES  = ["Round 1","Round 2","Round 3","Round 4","Round 5"];
+  const RCOUNTS = ["32 Matches","16 Matches","8 Matches","4 Matches","2 Matches"];
+
+  // ── Draw a match box ──
+  function renderMatch(m: Match, x: number, y: number) {
+    const t1wins = m.winnerId !== null && m.winnerId === m.team1Id;
+    const t2wins = m.winnerId !== null && m.winnerId === m.team2Id;
+    const done   = m.winnerId !== null;
+
+    const t1fill  = t1wins ? "#2a0060" : "#110820";
+    const t2fill  = t2wins ? "#2a0060" : "#110820";
+    const t1color = t1wins ? "#dd88ff" : t2wins ? "#3a1a6a" : "#c090ff";
+    const t2color = t2wins ? "#dd88ff" : t1wins ? "#3a1a6a" : "#c090ff";
+    const bstroke = done ? "#8800ff" : "#3a1a6a";
+
+    return (
+      <g key={`m-${m.id}`}>
+        {/* Team 1 */}
+        <rect x={x} y={y} width={MW} height={TEAM_H} rx={3} fill={t1fill} stroke={bstroke} strokeWidth={1} />
+        <text x={x + MW/2} y={y + TEAM_H/2} fontSize={10} fill={t1color}
+          textAnchor="middle" dominantBaseline="middle"
+          fontFamily="Orbitron,monospace" fontWeight={t1wins ? "700" : "400"}>
+          {trunc(m.team1 || "TBD", 17)}
+        </text>
+        {done && (
+          <text x={x + MW - 4} y={y + TEAM_H/2} fontSize={8} fill={t1wins ? "#22c55e" : "#ef4444"}
+            textAnchor="end" dominantBaseline="middle" fontFamily="monospace" fontWeight="bold">
+            {t1wins ? "WIN" : "OUT"}
+          </text>
+        )}
+
+        {/* VS */}
+        <rect x={x} y={y + TEAM_H} width={MW} height={VS_H} fill="#0e0619" stroke={bstroke} strokeWidth={1} />
+        <text x={x + MW/2} y={y + TEAM_H + VS_H/2} fontSize={8} fill="#5030a0"
+          textAnchor="middle" dominantBaseline="middle" fontFamily="Orbitron,monospace">
+          VS
+        </text>
+
+        {/* Team 2 */}
+        <rect x={x} y={y + TEAM_H + VS_H} width={MW} height={TEAM_H} rx={3} fill={t2fill} stroke={bstroke} strokeWidth={1} />
+        <text x={x + MW/2} y={y + TEAM_H + VS_H + TEAM_H/2} fontSize={10} fill={t2color}
+          textAnchor="middle" dominantBaseline="middle"
+          fontFamily="Orbitron,monospace" fontWeight={t2wins ? "700" : "400"}>
+          {trunc(m.team2 || "TBD", 17)}
+        </text>
+        {done && (
+          <text x={x + MW - 4} y={y + TEAM_H + VS_H + TEAM_H/2} fontSize={8} fill={t2wins ? "#22c55e" : "#ef4444"}
+            textAnchor="end" dominantBaseline="middle" fontFamily="monospace" fontWeight="bold">
+            {t2wins ? "WIN" : "OUT"}
+          </text>
+        )}
+      </g>
+    );
+  }
+
+  // ── Draw a side (left or right) ──
+  function renderSide(side: "left" | "right", rounds: number[]) {
+    const els: React.ReactNode[] = [];
+
+    rounds.forEach((round, ri) => {
+      const ms = (grouped[side]?.[round] || []).sort((a,b) => a.matchNumber - b.matchNumber);
+      const cx0   = colX(ri, side);
+      const sp    = gap(ri);
+      const ch    = colH(ri, ms.length);
+      const offY  = PAD_TOP + (maxH - ch) / 2;
+
+      // matches
+      ms.forEach((m, mi) => {
+        els.push(renderMatch(m, cx0, offY + mi * (MH + sp)));
+      });
+
+      // connector lines to next round
+      if (ri < rounds.length - 1) {
+        const nri   = ri + 1;
+        const nms   = (grouped[side]?.[rounds[nri]] || []).sort((a,b) => a.matchNumber - b.matchNumber);
+        const nsp   = gap(nri);
+        const nch   = colH(nri, nms.length);
+        const nOffY = PAD_TOP + (maxH - nch) / 2;
+        const ncx0  = colX(nri, side);
+
+        const ex   = side === "left" ? cx0 + MW : cx0;
+        const en   = side === "left" ? ncx0     : ncx0 + MW;
+        const midX = (ex + en) / 2;
+
+        ms.forEach((_, mi) => {
+          const y0 = offY  + mi * (MH + sp) + MH / 2;
+          const y1 = nOffY + Math.floor(mi / 2) * (MH + nsp) + MH / 2;
+          els.push(
+            <path key={`conn-${side}-${round}-${mi}`}
+              d={`M${ex},${y0} H${midX} V${y1} H${en}`}
+              stroke="#3a1a6a" strokeWidth={1} fill="none" />
+          );
+        });
+      }
+
+      // connector to finals
+      if (ri === rounds.length - 1 && ms.length > 0) {
+        const ch2   = colH(ri, ms.length);
+        const offY2 = PAD_TOP + (maxH - ch2) / 2;
+        const lastCY = offY2 + MH / 2;
+        const fTopY  = PAD_TOP + (maxH - finalsTotalH) / 2;
+        const fCY    = fTopY + MH / 2;
+        const ex     = side === "left" ? cx0 + MW : cx0;
+        const en     = side === "left" ? fmx       : fmx + FM_W;
+        const midX   = (ex + en) / 2;
+        els.push(
+          <path key={`finals-conn-${side}`}
+            d={`M${ex},${lastCY} H${midX} V${fCY} H${en}`}
+            stroke="#6020b0" strokeWidth={1.5} fill="none" />
+        );
+      }
+    });
+
+    return els;
+  }
+
+  // ── Grand Final ──
+  const fTopY   = PAD_TOP + (maxH - finalsTotalH) / 2;
+  const winnerY = fTopY + MH + FINALS_GAP_V;
+
+  const finalMatch = finalsRounds.length > 0
+    ? (grouped["finals"]?.[finalsRounds[0]] || [])[0]
+    : null;
+
+  const winnerName = finalMatch?.winnerId
+    ? (finalMatch.winnerId === finalMatch.team1Id ? finalMatch.team1 : finalMatch.team2)
+    : null;
+
+  return (
+    <div className="w-full overflow-auto rounded-xl border-2 border-border p-2" style={{ background: "#07050f" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');`}</style>
+
+      <svg width={totalW} height={totalH} className="min-w-max" style={{ display: "block" }}>
+        <defs>
+          <linearGradient id="winner-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#1e0050" />
+            <stop offset="100%" stopColor="#07000f" />
+          </linearGradient>
+          <linearGradient id="wborder" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#dd55ff" />
+            <stop offset="50%" stopColor="#8800ff" />
+            <stop offset="100%" stopColor="#dd55ff" />
+          </linearGradient>
+        </defs>
+
+        {/* ── Timeline ── */}
+        <line x1={0} y1={TL_Y} x2={totalW} y2={TL_Y} stroke="#2a1050" strokeWidth={1.5} />
+        <circle cx={CX} cy={TL_Y} r={6} fill="#9900ff" />
+
+        {/* Round labels — left */}
+        {leftRounds.map((round, ri) => {
+          const x = colX(ri, "left") + MW / 2;
+          return (
+            <g key={`lhdr-${ri}`}>
+              <circle cx={x} cy={TL_Y} r={4} fill="#7030d0" />
+              <text x={x} y={TL_Y + 14} fontSize={9} fill="#9060d0" textAnchor="middle" fontFamily="Orbitron,monospace" fontWeight="700">{RNAMES[ri]}</text>
+              <text x={x} y={TL_Y + 25} fontSize={8} fill="#5a3a8a" textAnchor="middle" fontFamily="monospace">{RCOUNTS[ri]}</text>
+            </g>
+          );
+        })}
+
+        {/* Round labels — right */}
+        {rightRounds.map((round, ri) => {
+          const x = colX(ri, "right") + MW / 2;
+          return (
+            <g key={`rhdr-${ri}`}>
+              <circle cx={x} cy={TL_Y} r={4} fill="#7030d0" />
+              <text x={x} y={TL_Y + 14} fontSize={9} fill="#9060d0" textAnchor="middle" fontFamily="Orbitron,monospace" fontWeight="700">{RNAMES[ri]}</text>
+              <text x={x} y={TL_Y + 25} fontSize={8} fill="#5a3a8a" textAnchor="middle" fontFamily="monospace">{RCOUNTS[ri]}</text>
+            </g>
+          );
+        })}
+
+        {/* Finals label */}
+        <text x={CX} y={TL_Y + 14} fontSize={10} fill="#ff60ff" textAnchor="middle" fontFamily="Orbitron,monospace" fontWeight="900">Grand Final</text>
+        <text x={CX} y={TL_Y + 25} fontSize={8}  fill="#8030a0" textAnchor="middle" fontFamily="monospace">1 Match</text>
+
+        {/* Group labels */}
+        <rect x={HPAD} y={TL_Y - 22} width={sideW} height={16} rx={3} fill="#1a0835" opacity={0.8} />
+        <text x={HPAD + sideW/2} y={TL_Y - 14} fontSize={9} fill="#8050c0" textAnchor="middle" fontFamily="Orbitron,monospace" fontWeight="700">GROUP A</text>
+        <rect x={HPAD + sideW + FGAP + FM_W + FGAP} y={TL_Y - 22} width={sideW} height={16} rx={3} fill="#1a0835" opacity={0.8} />
+        <text x={HPAD + sideW + FGAP + FM_W + FGAP + sideW/2} y={TL_Y - 14} fontSize={9} fill="#8050c0" textAnchor="middle" fontFamily="Orbitron,monospace" fontWeight="700">GROUP B</text>
+
+        {/* ── Left side ── */}
+        {renderSide("left", leftRounds)}
+
+        {/* ── Right side ── */}
+        {renderSide("right", rightRounds)}
+
+        {/* ── Grand Final box ── */}
+        {finalMatch ? (
+          <>
+            <rect x={fmx} y={fTopY} width={FM_W} height={TEAM_H} rx={3} fill={finalMatch.winnerId === finalMatch.team1Id ? "#2a0060" : "#0e0618"} stroke="#8000ff" strokeWidth={2} />
+            <text x={CX} y={fTopY + TEAM_H/2} fontSize={10} fill={finalMatch.winnerId === finalMatch.team1Id ? "#dd88ff" : "#c090ff"}
+              textAnchor="middle" dominantBaseline="middle" fontFamily="Orbitron,monospace">
+              {trunc(finalMatch.team1 || "TBD", 20)}
+            </text>
+            <rect x={fmx} y={fTopY + TEAM_H} width={FM_W} height={VS_H} fill="#0b0016" stroke="#8000ff" strokeWidth={2} />
+            <text x={CX} y={fTopY + TEAM_H + VS_H/2} fontSize={8} fill="#7030b0" textAnchor="middle" dominantBaseline="middle" fontFamily="Orbitron,monospace">VS</text>
+            <rect x={fmx} y={fTopY + TEAM_H + VS_H} width={FM_W} height={TEAM_H} rx={3} fill={finalMatch.winnerId === finalMatch.team2Id ? "#2a0060" : "#0e0618"} stroke="#8000ff" strokeWidth={2} />
+            <text x={CX} y={fTopY + TEAM_H + VS_H + TEAM_H/2} fontSize={10} fill={finalMatch.winnerId === finalMatch.team2Id ? "#dd88ff" : "#c090ff"}
+              textAnchor="middle" dominantBaseline="middle" fontFamily="Orbitron,monospace">
+              {trunc(finalMatch.team2 || "TBD", 20)}
+            </text>
+          </>
+        ) : (
+          <>
+            <rect x={fmx} y={fTopY} width={FM_W} height={TEAM_H} rx={3} fill="#0e0618" stroke="#8000ff" strokeWidth={2} />
+            <line x1={fmx+FM_W*0.2} y1={fTopY+TEAM_H/2} x2={fmx+FM_W*0.8} y2={fTopY+TEAM_H/2} stroke="#3a1a6a" strokeWidth={1.5} />
+            <rect x={fmx} y={fTopY+TEAM_H} width={FM_W} height={VS_H} fill="#0b0016" stroke="#8000ff" strokeWidth={2} />
+            <text x={CX} y={fTopY+TEAM_H+VS_H/2} fontSize={8} fill="#7030b0" textAnchor="middle" dominantBaseline="middle" fontFamily="Orbitron,monospace">VS</text>
+            <rect x={fmx} y={fTopY+TEAM_H+VS_H} width={FM_W} height={TEAM_H} rx={3} fill="#0e0618" stroke="#8000ff" strokeWidth={2} />
+            <line x1={fmx+FM_W*0.2} y1={fTopY+TEAM_H+VS_H+TEAM_H/2} x2={fmx+FM_W*0.8} y2={fTopY+TEAM_H+VS_H+TEAM_H/2} stroke="#3a1a6a" strokeWidth={1.5} />
+          </>
+        )}
+
+        {/* Connector finals → winner box */}
+        <line x1={CX} y1={fTopY + MH} x2={CX} y2={winnerY} stroke="#8800ff" strokeWidth={2} />
+
+        {/* ── Winner Box ── */}
+        {(() => {
+          const wbW = FM_W + 40;
+          const wbX = CX - wbW / 2;
+          const wbR = 8;
+          const dS  = 7;
+          const diamonds = [
+            [wbX+14, winnerY+14], [wbX+wbW-14, winnerY+14],
+            [wbX+14, winnerY+WB_H-14], [wbX+wbW-14, winnerY+WB_H-14],
+          ];
+          return (
+            <>
+              <rect x={wbX-3} y={winnerY-3} width={wbW+6} height={WB_H+6} rx={wbR+4} fill="none" stroke="#cc44ff" strokeWidth={1} opacity={0.35} />
+              <rect x={wbX} y={winnerY} width={wbW} height={WB_H} rx={wbR} fill="url(#winner-grad)" stroke="url(#wborder)" strokeWidth={2} />
+              <line x1={wbX+20} y1={winnerY+3} x2={wbX+wbW-20} y2={winnerY+3} stroke="#cc44ff" strokeWidth={1} opacity={0.45} />
+              <line x1={wbX+20} y1={winnerY+WB_H-3} x2={wbX+wbW-20} y2={winnerY+WB_H-3} stroke="#cc44ff" strokeWidth={1} opacity={0.45} />
+              <text x={CX} y={winnerY+WB_H*0.28} fontSize={28} textAnchor="middle" dominantBaseline="middle">🏆</text>
+              <text x={CX} y={winnerY+WB_H*0.58} fontSize={13} fill="#dd88ff" textAnchor="middle" dominantBaseline="middle" fontFamily="Orbitron,monospace" fontWeight="900">WINNER</text>
+              {/* winner name slot */}
+              <rect x={wbX+wbW*0.1} y={winnerY+WB_H*0.74} width={wbW*0.8} height={22} rx={3} fill="#0d001f" stroke="#5500bb" strokeWidth={1} />
+              {winnerName && (
+                <text x={CX} y={winnerY+WB_H*0.74+11} fontSize={10} fill="#ffffff" textAnchor="middle" dominantBaseline="middle" fontFamily="Orbitron,monospace" fontWeight="700">
+                  {trunc(winnerName, 20)}
+                </text>
+              )}
+              {diamonds.map(([dx, dy], i) => (
+                <polygon key={i} points={`${dx},${dy-dS} ${dx+dS},${dy} ${dx},${dy+dS} ${dx-dS},${dy}`} fill="#9900dd" opacity={0.7} />
+              ))}
+            </>
+          );
+        })()}
+
+        {/* ── Footer title ── */}
+        {(() => {
+          const labelY = winnerY + WB_H + 28;
+          return (
+            <>
+              <text x={CX} y={labelY} fontSize={16} fill="#ffffff" textAnchor="middle" fontFamily="Orbitron,monospace" fontWeight="900">AQRIX 2v2 Community Cup</text>
+              <text x={CX} y={labelY + 22} fontSize={9} fill="#6030a0" textAnchor="middle" fontFamily="monospace">64 TEAM · SINGLE ELIMINATION</text>
+            </>
+          );
+        })()}
+      </svg>
+    </div>
+  );
+}
+
+function trunc(s: string, max: number) {
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}

@@ -3,7 +3,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { getAllTeams, getVerifiedTeams, createTeam, updateTeamStatus, getDb, generateBracketMatches, getBracketWithTeamNames, updateMatchResult } from "./db";
+import { getAllTeams, getVerifiedTeams, getWheelSelectedTeams, createTeam, updateTeamStatus, getDb, generateBracketMatches, getBracketWithTeamNames, updateMatchResult, getTotalRegisteredTeams, getWheelEligibleTeams, markTeamWheelSelected, banTeamFromWheel } from "./db";
 import { and, eq, like } from "drizzle-orm";
 import { generateDual32Bracket } from "./db-bracket-dual32";
 import { TRPCError } from "@trpc/server";
@@ -11,6 +11,7 @@ import { validateAdminCredentials, generateAdminToken, verifyAdminToken } from "
 import { checkRateLimit, recordFailedAttempt, getRemainingAttempts, getResetTime } from "./rate-limit";
 import { generateTwoFASecret, verifyTOTPToken, verifyBackupCode, getTwoFAStatus, enableTwoFA, isTwoFAEnabled } from "./twofa";
 import { tournamentStatus, bracketMatches, teams as teamsTable } from "../drizzle/schema";
+import type { inferRouterOutputs } from "@trpc/server";
 
 export const appRouter = router({
   system: systemRouter,
@@ -254,15 +255,15 @@ export const appRouter = router({
       return await getVerifiedTeams();
     }),
     count: publicProcedure.query(async () => {
-      const teams = await getVerifiedTeams();
-      return { count: teams.length, max: 64 };
+      const totalTeams = await getTotalRegisteredTeams();
+      return { count: totalTeams, max: 64 };
     }),
     admin: router({
       listAll: publicProcedure
         .input(z.object({
           token: z.string(),
           search: z.string().optional(),
-          status: z.enum(["pending", "verified", "rejected"]).optional(),
+          status: z.enum(["pending", "verified", "rejected", "wheel_selected"]).optional(),
         }))
         .query(async ({ input }) => {
           // Verify admin token
@@ -285,13 +286,13 @@ export const appRouter = router({
 
           // Filter by status
           if (input.status) {
-            teams = teams.filter(t => t.status === input.status);
+            teams = teams.filter((t) => t.status === input.status);
           }
 
           // Filter by search term
           if (input.search) {
             const searchLower = input.search.toLowerCase();
-            teams = teams.filter(t =>
+            teams = teams.filter((t) =>
               t.teamName.toLowerCase().includes(searchLower) ||
               t.player1Name.toLowerCase().includes(searchLower) ||
               t.player2Name.toLowerCase().includes(searchLower)
@@ -300,10 +301,99 @@ export const appRouter = router({
 
           return teams;
         }),
+      getWheelPool: publicProcedure
+        .input(z.object({
+          token: z.string(),
+        }))
+        .query(async ({ input }) => {
+          if (process.env.NODE_ENV !== "test") {
+            const payload = verifyAdminToken(input.token);
+            if (!payload) {
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "Invalid or expired token",
+              });
+            }
+          }
+
+          const teams = await getWheelEligibleTeams();
+          return teams.map((team) => ({
+            id: team.id,
+            teamName: team.teamName,
+            player1Name: team.player1Name,
+            player2Name: team.player2Name,
+          }));
+        }),
+      acceptWheelTeam: publicProcedure
+        .input(z.object({
+          teamId: z.number(),
+          token: z.string(),
+        }))
+        .mutation(async ({ input }) => {
+          if (process.env.NODE_ENV !== "test") {
+            const payload = verifyAdminToken(input.token);
+            if (!payload) {
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "Invalid or expired token",
+              });
+            }
+          }
+
+          await markTeamWheelSelected(input.teamId);
+          return { success: true };
+        }),
+      banWheelTeam: publicProcedure
+        .input(z.object({
+          teamId: z.number(),
+          token: z.string(),
+        }))
+        .mutation(async ({ input }) => {
+          if (process.env.NODE_ENV !== "test") {
+            const payload = verifyAdminToken(input.token);
+            if (!payload) {
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "Invalid or expired token",
+              });
+            }
+          }
+
+          await banTeamFromWheel(input.teamId);
+          return { success: true };
+        }),
+      getWheelStats: publicProcedure
+        .input(z.object({
+          token: z.string(),
+        }))
+        .query(async ({ input }) => {
+          if (process.env.NODE_ENV !== "test") {
+            const payload = verifyAdminToken(input.token);
+            if (!payload) {
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "Invalid or expired token",
+              });
+            }
+          }
+
+          const teams = await getAllTeams();
+          const eligibleTeams = await getWheelEligibleTeams();
+          const selectedCount = teams.filter((team) => team.status === "wheel_selected").length;
+          const verifiedCount = teams.filter((team) => team.status === "verified").length;
+
+          return {
+            selectedCount,
+            verifiedCount,
+            remainingSlots: 64 - selectedCount,
+            eligibleCount: eligibleTeams.length,
+          };
+        }),
       updateStatus: publicProcedure
         .input(z.object({
           teamId: z.number(),
-          status: z.enum(["pending", "verified", "rejected"]),
+          status: z.enum(["pending", "verified", "rejected", "wheel_selected"]),
+          rejectionReason: z.string().max(500).nullable().optional(),
           token: z.string(),
         }))
         .mutation(async ({ input }) => {
@@ -318,7 +408,7 @@ export const appRouter = router({
             }
           }
           
-          return await updateTeamStatus(input.teamId, input.status);
+          return await updateTeamStatus(input.teamId, input.status, input.rejectionReason);
         }),
     }),
     create: publicProcedure
@@ -393,6 +483,8 @@ export const appRouter = router({
           player2DiscordName: `discordB${i + 1}`,
           player2TikTokName: "",
           status: "verified" as const,
+          rejectionReason: null,
+          selectedAt: null,
         }));
 
         await db.insert(teamsTable).values(testTeams);
@@ -427,15 +519,21 @@ export const appRouter = router({
         const now = new Date();
         const endTime = new Date(now.getTime() + 48 * 60 * 60 * 1000); // 48 hours
 
-        // Get verified teams and generate bracket
-        const verifiedTeams = await getVerifiedTeams();
-        const verifiedTeamIds = verifiedTeams.map(t => t.id);
-        if (verifiedTeamIds.length === 64) {
+        const wheelSelectedTeams = await getWheelSelectedTeams();
+        if (wheelSelectedTeams.length !== 64) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Need exactly 64 wheel-selected teams to start tournament",
+          });
+        }
+
+        const wheelSelectedTeamIds = wheelSelectedTeams.map((t) => t.id);
+        if (wheelSelectedTeamIds.length === 64) {
           // Use dual 32-team bracket for exactly 64 teams
-          await generateDual32Bracket(verifiedTeamIds);
-        } else if (verifiedTeamIds.length > 0) {
+          await generateDual32Bracket(wheelSelectedTeamIds);
+        } else if (wheelSelectedTeamIds.length > 0) {
           // Fallback to 64-team bracket for other counts
-          await generateBracketMatches(verifiedTeamIds);
+          await generateBracketMatches(wheelSelectedTeamIds);
         }
 
         // Update or create tournament status
@@ -565,7 +663,7 @@ export const appRouter = router({
             
             // Get winner team name
             const teams = await getAllTeams();
-            const winnerTeam = teams.find(t => t.id === input.winnerId);
+            const winnerTeam = teams.find((t) => t.id === input.winnerId);
             
             if (winnerTeam) {
               const updateData: any = {};
@@ -588,6 +686,12 @@ export const appRouter = router({
       }),
 
     getBracket: publicProcedure.query(async () => {
+      return await getBracketWithTeamNames();
+    }),
+  }),
+
+  bracket: router({
+    get: publicProcedure.query(async () => {
       return await getBracketWithTeamNames();
     }),
   }),

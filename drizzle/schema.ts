@@ -43,7 +43,9 @@ export const teams = mysqlTable("teams", {
   player2InstagramName: varchar("player2InstagramName", { length: 255 }).notNull(),
   player2DiscordName: varchar("player2DiscordName", { length: 255 }).notNull(),
   player2TikTokName: varchar("player2TikTokName", { length: 255 }).notNull(),
-  status: mysqlEnum("status", ["pending", "verified", "rejected"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "verified", "rejected", "wheel_selected"]).default("pending").notNull(),
+  rejectionReason: varchar("rejectionReason", { length: 500 }),
+  selectedAt: timestamp("selectedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -186,6 +186,18 @@ describe("teams router", () => {
         expect(team).toHaveProperty("player2TwitchName");
       });
     });
+
+    it("should filter wheel selected teams by status", async () => {
+      const ctx = createPublicContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.teams.admin.listAll({ token: "", status: "wheel_selected" });
+
+      expect(Array.isArray(result)).toBe(true);
+      result.forEach((team: any) => {
+        expect(team.status).toBe("wheel_selected");
+      });
+    });
   });
 
   describe("teams.admin.updateStatus", () => {

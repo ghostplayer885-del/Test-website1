@@ -3,6 +3,9 @@ import { getDb } from "./db";
 import { adminAccessTokens } from "../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
+import type { InferSelectModel } from "drizzle-orm";
+
+type AdminAccessToken = InferSelectModel<typeof adminAccessTokens>;
 
 /**
  * Generate a random alphanumeric token (16 characters)
@@ -133,7 +136,7 @@ export async function getOwnerTokens(ownerEmail: string) {
       .from(adminAccessTokens)
       .where(eq(adminAccessTokens.createdBy, ownerEmail));
 
-    return tokens.map((t) => ({
+    return tokens.map((t: AdminAccessToken) => ({
       id: t.id,
       token: t.token,
       isActive: t.isActive === 1,

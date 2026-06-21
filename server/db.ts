@@ -1,12 +1,64 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, teams, InsertTeam, tournamentStatus, bracketMatches } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import type { MySql2Database } from "drizzle-orm/mysql2";
+import type * as schema from "../drizzle/schema";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+type DbInstance = MySql2Database<typeof schema>;
+type TeamRecord = Awaited<ReturnType<typeof getAllTeams>>[number];
+
+let _db: DbInstance | null = null;
+let _migrationPromise: Promise<void> | null = null;
+
+async function ensureTeamsSchema(db: DbInstance): Promise<void> {
+  if (_migrationPromise) {
+    return _migrationPromise;
+  }
+
+  _migrationPromise = (async () => {
+    try {
+      const columnsResult = await db.execute(sql`
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'teams'
+          AND COLUMN_NAME IN ('rejectionReason', 'selectedAt')
+      `);
+
+      const rows = Array.isArray((columnsResult as any)?.rows)
+        ? (columnsResult as any).rows
+        : Array.isArray(columnsResult)
+          ? columnsResult
+          : [];
+
+      const existingColumns = new Set(
+        rows
+          .map((row: any) => row?.COLUMN_NAME ?? row?.column_name ?? Object.values(row ?? {})[0])
+          .filter(Boolean),
+      );
+
+      if (!existingColumns.has("rejectionReason")) {
+        await db.execute(sql.raw("ALTER TABLE teams ADD COLUMN rejectionReason VARCHAR(500) DEFAULT NULL"));
+      }
+
+      if (!existingColumns.has("selectedAt")) {
+        await db.execute(sql.raw("ALTER TABLE teams ADD COLUMN selectedAt TIMESTAMP NULL DEFAULT NULL"));
+      }
+
+      await db.execute(
+        sql.raw("ALTER TABLE teams MODIFY COLUMN status ENUM('pending','verified','rejected','wheel_selected') NOT NULL DEFAULT 'pending'"),
+      );
+    } catch (error) {
+      console.warn("[Database] Teams schema auto-migration skipped:", error);
+    }
+  })();
+
+  return _migrationPromise;
+}
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
-export async function getDb() {
+export async function getDb(): Promise<DbInstance | null> {
   if (!_db && process.env.DATABASE_URL) {
     try {
       const mysql = await import("mysql2/promise");
@@ -24,6 +76,7 @@ export async function getDb() {
         connectTimeout: 30000,
       });
       _db = drizzle(pool);
+      await ensureTeamsSchema(_db);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -131,6 +184,46 @@ export async function getVerifiedTeams() {
   if (!db) {
     if (process.env.NODE_ENV === "test") {
       return teamsStore
+        .filter(t => t.status === "verified" || t.status === "wheel_selected")
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+    return [];
+  }
+
+  try {
+    const result = await db.select().from(teams).orderBy(desc(teams.createdAt));
+    return result.filter((team: TeamRecord) => team.status === "verified" || team.status === "wheel_selected");
+  } catch (error) {
+    console.error("[Database] Failed to get verified teams:", error);
+    return [];
+  }
+}
+
+export async function getWheelSelectedTeams() {
+  const db = await getDb();
+  if (!db) {
+    if (process.env.NODE_ENV === "test") {
+      return teamsStore
+        .filter(t => t.status === "wheel_selected")
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    }
+    return [];
+  }
+
+  try {
+    const result = await db.select().from(teams).where(eq(teams.status, "wheel_selected")).orderBy(desc(teams.createdAt));
+    return result;
+  } catch (error) {
+    console.error("[Database] Failed to get wheel selected teams:", error);
+    return [];
+  }
+}
+
+export async function getWheelEligibleTeams() {
+  const db = await getDb();
+  if (!db) {
+    if (process.env.NODE_ENV === "test") {
+      return teamsStore
         .filter(t => t.status === "verified")
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
@@ -141,16 +234,22 @@ export async function getVerifiedTeams() {
     const result = await db.select().from(teams).where(eq(teams.status, "verified")).orderBy(desc(teams.createdAt));
     return result;
   } catch (error) {
-    console.error("[Database] Failed to get verified teams:", error);
+    console.error("[Database] Failed to get wheel eligible teams:", error);
     return [];
   }
 }
 
 export async function createTeam(team: InsertTeam) {
+  const teamValues: InsertTeam = {
+    ...team,
+    rejectionReason: team.rejectionReason ?? null,
+    selectedAt: team.selectedAt ?? null,
+  };
+
   const db = await getDb();
   if (!db) {
     if (process.env.NODE_ENV === "test") {
-      const newTeam = { ...team, id: nextTeamId++, createdAt: new Date(), updatedAt: new Date() };
+      const newTeam = { ...teamValues, id: nextTeamId++, createdAt: new Date(), updatedAt: new Date() };
       teamsStore.push(newTeam);
       return [{ insertId: newTeam.id }];
     }
@@ -158,7 +257,7 @@ export async function createTeam(team: InsertTeam) {
   }
 
   try {
-    const result = await db.insert(teams).values(team);
+    const result = await db.insert(teams).values(teamValues);
     return result;
   } catch (error) {
     console.error("[Database] Failed to create team:", error);
@@ -184,13 +283,19 @@ export async function getTeamById(id: number) {
   }
 }
 
-export async function updateTeamStatus(id: number, status: "pending" | "verified" | "rejected") {
+export async function updateTeamStatus(
+  id: number,
+  status: "pending" | "verified" | "rejected" | "wheel_selected",
+  rejectionReason?: string | null,
+) {
   const db = await getDb();
   if (!db) {
     if (process.env.NODE_ENV === "test") {
       const team = teamsStore.find(t => t.id === id);
       if (team) {
         team.status = status;
+        team.rejectionReason = rejectionReason ?? null;
+        team.selectedAt = status === "wheel_selected" ? new Date() : null;
         team.updatedAt = new Date();
       }
       return team || null;
@@ -199,11 +304,41 @@ export async function updateTeamStatus(id: number, status: "pending" | "verified
   }
 
   try {
-    await db.update(teams).set({ status }).where(eq(teams.id, id));
+    await db.update(teams).set({
+      status,
+      rejectionReason: rejectionReason ?? null,
+      selectedAt: status === "wheel_selected" ? new Date() : null,
+    }).where(eq(teams.id, id));
     return await getTeamById(id);
   } catch (error) {
     console.error("[Database] Failed to update team status:", error);
     throw error;
+  }
+}
+
+export async function markTeamWheelSelected(teamId: number) {
+  return await updateTeamStatus(teamId, "wheel_selected");
+}
+
+export async function banTeamFromWheel(teamId: number) {
+  return await updateTeamStatus(teamId, "rejected", "Banned by Aqrix from the Wheel");
+}
+
+export async function getTotalRegisteredTeams() {
+  const db = await getDb();
+  if (!db) {
+    if (process.env.NODE_ENV === "test") {
+      return teamsStore.length;
+    }
+    return 0;
+  }
+
+  try {
+    const result = await db.select({ value: count() }).from(teams);
+    return result[0]?.value ?? 0;
+  } catch (error) {
+    console.error("[Database] Failed to count registered teams:", error);
+    return 0;
   }
 }
 
@@ -312,7 +447,7 @@ export async function getBracketWithTeamNames() {
 
     // Get all team names
     const allTeams = await getAllTeams();
-    const teamMap = new Map(allTeams.map(t => [t.id, t.teamName]));
+    const teamMap = new Map(allTeams.map((t: TeamRecord) => [t.id, t.teamName]));
 
     // Build rounds with team names
     const rounds = Array.from(roundsMap.entries())
