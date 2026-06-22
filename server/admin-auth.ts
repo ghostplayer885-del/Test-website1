@@ -1,3 +1,10 @@
+/*
+  CODE_RABBIT_REVIEW: Security notes
+  - This file implements admin authentication (JWT, bcrypt).
+  - Please review: secret management, token expiry, password storage, and any hard-coded defaults.
+  - Do NOT leave production secrets in code; ensure `process.env.JWT_SECRET` is set in your deployment.
+  - If you change cryptographic settings, validate compatibility with existing tokens.
+*/
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 

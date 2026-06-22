@@ -1,3 +1,9 @@
+/*
+  CODE_RABBIT_REVIEW: Rate limiter notes
+  - This is an in-memory rate limiter intended for simple deployments and tests.
+  - In production consider a distributed persistent store (Redis) to avoid bypass via multiple instances.
+  - Review values for `WINDOW_MS` and `MAX_ATTEMPTS` to match your threat model.
+*/
 /**
  * Simple in-memory rate limiter for admin login attempts
  * Tracks failed login attempts per IP address
