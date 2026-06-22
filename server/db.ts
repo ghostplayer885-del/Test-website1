@@ -1,3 +1,9 @@
+/*
+  CODE_RABBIT_REVIEW: Database access notes
+  - This module opens DB connections and runs migrations.
+  - Verify that `process.env.DATABASE_URL` is configured securely and does not leak credentials.
+  - Consider connection pooling and limits for production; avoid logging sensitive details.
+*/
 import { eq, desc, count, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, teams, InsertTeam, tournamentStatus, bracketMatches } from "../drizzle/schema";

@@ -1,15 +1,22 @@
+/*
+  CODE_RABBIT_REVIEW: Security notes
+  - This file implements admin authentication (JWT, bcrypt).
+  - Please review: secret management, token expiry, password storage, and any hard-coded defaults.
+  - Do NOT leave production secrets in code; ensure `process.env.JWT_SECRET` is set in your deployment.
+  - If you change cryptographic settings, validate compatibility with existing tokens.
+*/
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
-const JWT_SECRET = process.env.JWT_SECRET || "aqrix-secret-key-2026";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
   console.error("[Admin Auth] FATAL: JWT_SECRET environment variable is not set!");
 }
 
-// Default admin credentials from environment
-const DEFAULT_ADMIN_EMAIL = "admin@aqrix.local";
-const DEFAULT_ADMIN_PASSWORD = "K9xL2mQ5vN8p7R3";
+// Admin credentials must be provided via environment variables for production.
+const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "";
 
 if (!DEFAULT_ADMIN_EMAIL || !DEFAULT_ADMIN_PASSWORD) {
   console.error("[Admin Auth] FATAL: ADMIN_EMAIL or ADMIN_PASSWORD environment variables are not set!");

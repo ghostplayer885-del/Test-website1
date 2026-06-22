@@ -41,9 +41,17 @@ async function startServer() {
   // Admin login endpoint
   app.post("/api/admin/login", (req, res) => {
     const { email, password } = req.body;
-    // Simple hardcoded admin credentials
-    if (email === "admin@aqrix.local" && password === "K9xL2mQ5vN8p7R3") {
-      const jwtSecret = process.env.JWT_SECRET || "aqrix-secret-key-2026";
+    // Use environment variables for admin credentials in production.
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    const jwtSecret = process.env.JWT_SECRET;
+
+    if (!adminEmail || !adminPassword || !jwtSecret) {
+      console.error("[Server] Admin login attempted without required env variables.");
+      return res.status(500).json({ error: "Server configuration error" });
+    }
+
+    if (email === adminEmail && password === adminPassword) {
       const token = jwt.sign(
         { email, name: "Admin" },
         jwtSecret,

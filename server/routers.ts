@@ -1,3 +1,9 @@
+/*
+  CODE_RABBIT_REVIEW: Router and input validation notes
+  - This file wires TRPC endpoints and input schemas.
+  - Ensure all inputs are validated and any user-provided data is sanitized before DB use.
+  - Confirm authentication and authorization checks for admin-only endpoints.
+*/
 import { getSessionCookieOptions } from "./_core/cookies";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { systemRouter } from "./_core/systemRouter";
